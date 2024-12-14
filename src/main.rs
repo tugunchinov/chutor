@@ -1,6 +1,5 @@
 fn main() {
-    let executor = chutor::Executor::new();
-    executor.block_on(start());
+    chutor::run_with_seed(start(), 666);
 }
 
 async fn start() {
