@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::os::fd::RawFd;
 
 macro_rules! syscall {
@@ -14,7 +13,6 @@ macro_rules! syscall {
 
 struct Epoll {
     fd: RawFd,
-    events_buf: RefCell<Vec<libc::epoll_event>>,
 }
 
 impl Epoll {
@@ -23,8 +21,7 @@ impl Epoll {
 
     fn new() -> std::io::Result<Self> {
         let fd = syscall!(epoll_create1(libc::EPOLL_CLOEXEC))?;
-        let events_buf = RefCell::new(Vec::with_capacity(Self::MAX_EVENTS as usize));
-        Ok(Self { fd, events_buf })
+        Ok(Self { fd })
     }
 
     fn get_read_event_one_shot(data: u64) -> libc::epoll_event {
@@ -71,9 +68,6 @@ impl Epoll {
     }
 
     fn wait(&self) -> std::io::Result<Vec<libc::epoll_event>> {
-        // TODO: ???
-        //let events_buf_ptr = self.events_buf.borrow_mut().as_mut_ptr();
-
         let mut events_buf = Vec::with_capacity(Self::MAX_EVENTS as usize);
         let events_buf_ptr = events_buf.as_mut_ptr();
 
@@ -87,6 +81,12 @@ impl Epoll {
         unsafe { events_buf.set_len(ready_events_cnt as usize) };
 
         Ok(events_buf)
+    }
+}
+
+impl Drop for Epoll {
+    fn drop(&mut self) {
+        syscall!(close(self.fd)).expect("failed to close epoll handle");
     }
 }
 
